@@ -158,6 +158,19 @@ When R2 credentials are configured:
 
 Without R2 credentials, clawdbot still works but uses ephemeral storage.
 
+## Container Lifecycle
+
+By default, the sandbox container stays alive indefinitely (`SANDBOX_SLEEP_AFTER=never`). This is recommended because cold starts take 1-2 minutes.
+
+To reduce costs for infrequently used deployments, you can configure the container to sleep after a period of inactivity:
+
+```bash
+npx wrangler secret put SANDBOX_SLEEP_AFTER
+# Enter: 10m (or 1h, 30m, etc.)
+```
+
+When the container sleeps, the next request will trigger a cold start. If you have R2 storage configured, your paired devices and data will persist across restarts.
+
 ## Admin UI
 
 Access the admin UI at `/_admin/` to:
@@ -210,6 +223,7 @@ npm run deploy
 | `CLAWDBOT_GATEWAY_TOKEN` | Yes | Gateway token for authentication (pass via `?token=` query param) |
 | `DEV_MODE` | No | Set to `true` to skip CF Access auth + device pairing (local dev only) |
 | `DEBUG_ROUTES` | No | Set to `true` to enable `/debug/*` routes |
+| `SANDBOX_SLEEP_AFTER` | No | Container sleep timeout: `never` (default) or duration like `10m`, `1h` |
 | `R2_ACCESS_KEY_ID` | No | R2 access key for persistent storage |
 | `R2_SECRET_ACCESS_KEY` | No | R2 secret key for persistent storage |
 | `CF_ACCOUNT_ID` | No | Cloudflare account ID for R2 |

@@ -21,9 +21,9 @@
  */
 
 import { Hono } from 'hono';
-import { getSandbox, Sandbox } from '@cloudflare/sandbox';
+import { getSandbox, Sandbox, type SandboxOptions } from '@cloudflare/sandbox';
 
-import type { AppEnv } from './types';
+import type { AppEnv, ClawdbotEnv } from './types';
 import { CLAWDBOT_PORT } from './config';
 import { createAccessMiddleware } from './auth';
 import { ensureClawdbotGateway } from './gateway';
@@ -31,12 +31,36 @@ import { api, admin, debug } from './routes';
 
 export { Sandbox };
 
+/**
+ * Build sandbox options based on environment configuration.
+ * 
+ * SANDBOX_SLEEP_AFTER controls how long the container stays alive after inactivity:
+ * - 'never' (default): Container stays alive indefinitely (recommended due to long cold starts)
+ * - Duration string: e.g., '10m', '1h', '30s' - container sleeps after this period of inactivity
+ * 
+ * To reduce costs at the expense of cold start latency, set SANDBOX_SLEEP_AFTER to a duration:
+ *   npx wrangler secret put SANDBOX_SLEEP_AFTER
+ *   # Enter: 10m (or 1h, 30m, etc.)
+ */
+function buildSandboxOptions(env: ClawdbotEnv): SandboxOptions {
+  const sleepAfter = env.SANDBOX_SLEEP_AFTER?.toLowerCase() || 'never';
+  
+  // 'never' means keep the container alive indefinitely
+  if (sleepAfter === 'never') {
+    return { keepAlive: true };
+  }
+  
+  // Otherwise, use the specified duration
+  return { sleepAfter };
+}
+
 // Main app
 const app = new Hono<AppEnv>();
 
 // Middleware: Initialize sandbox for all requests
 app.use('*', async (c, next) => {
-  const sandbox = getSandbox(c.env.Sandbox, 'clawdbot');
+  const options = buildSandboxOptions(c.env);
+  const sandbox = getSandbox(c.env.Sandbox, 'clawdbot', options);
   c.set('sandbox', sandbox);
   await next();
 });
